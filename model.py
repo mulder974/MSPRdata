@@ -1,6 +1,7 @@
 from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
@@ -13,6 +14,7 @@ from sklearn.model_selection import train_test_split
 import db
 from sklearn.preprocessing import LabelEncoder
 import streamlit as st
+import time
 
 
 
@@ -43,9 +45,9 @@ def predict(input, model):
 def mesure_accuracy(y_test,y_pred):
     accuracy=accuracy_score(y_true=y_test, y_pred=y_pred)
     print("Accuracy: {:.2f}%".format(accuracy * 100))
+    return accuracy
 
 def save_model(model,filename):
-
     pickle.dump(model, open(filename, 'wb'))
 
 
@@ -76,38 +78,38 @@ def create_model_neur_net():
     clf = MLPClassifier()
     return clf
 
+def preprocess(df):
 
 
+    st.write("Preprocessing dataframe")
 
-def retrain_all_model():
-
-    #Preprocessing
-    le = LabelEncoder()
-    df = db.query_data()
-    df = df.drop("Unnamed: 0", axis = 1)
-    df = df.drop("index", axis = 1)
-    df = df.drop("Libellé de la commune", axis = 1)
-    df = df.drop("longitude", axis = 1)
+    df = df.drop("Unnamed: 0", axis=1)
+    df = df.drop("index", axis=1)
+    df = df.drop("Libellé de la commune", axis=1)
+    df = df.drop("longitude", axis=1)
     df = df.drop("latitude", axis=1)
     df = df.drop("Geo Point", axis=1)
     df = df.drop("NOM_COM", axis=1)
     df = df.drop("president_gagnant", axis=1)
     df["Age moyen"] = df["Age moyen"].replace(",", ".", regex=True)
     df["Age moyen"] = df["Age moyen"].astype("float")
-
-
-
-
-    X = df.drop("partie" ,axis=1)
+    le = LabelEncoder()
+    X = df.drop("partie", axis=1)
+    for col in X.columns:
+        print(col)
     Y = df["partie"]
     Y_encoded = le.fit_transform(Y)
+    x_train, x_test, y_train, y_test = train_test_split(X, Y_encoded, test_size=0.33, random_state=42)
 
-    x_train, x_test, y_train, y_test = train_test_split( X, Y_encoded, test_size=0.33, random_state=42)
+    return x_train, x_test, y_train, y_test, le
 
+
+def retrain_all_model(x_train, x_test, y_train, y_test, encoder ):
+
+    encoder = encoder
     x_train_log_reg, x_test_log_reg = x_train.copy(), x_test.copy()
     x_train_rand_for, x_test_rand_for = x_train.copy(), x_test.copy()
     x_train_neur_net, x_test_neur_net = x_train.copy(), x_test.copy()
-
 
     models_list = []
 
@@ -125,15 +127,15 @@ def retrain_all_model():
 
     # Now we apply a grid search in order to find the best parameters to our models
 
-    st.write("Now applying preporcessing then grid search to find best params for each model")
+    st.write("Now applying standardisation then grid search to find best params for each model")
     n= 1
+
 
     for model_ in models_list:
 
         st.write("---------------------Training new model---------------------")
         st.write(f" \n  model N° {n} / {len(models_list)} \n")
-
-
+        n += 1
 
         if model_[1] == "log_reg":
             st.write("Model log_reg : \n")
@@ -150,42 +152,52 @@ def retrain_all_model():
             log_reg_clf.fit(x_train_log_reg, y_train)
 
             st.write(" best estimator : ")
-            print(log_reg_clf.best_estimator_)
+            best_estimator_ = log_reg_clf.best_estimator_
+            st.write(best_estimator_)
             st.write(" best params : ")
-            st.write(log_reg_clf.best_score_)
+            best_params = log_reg_clf.best_score_
+            st.write(best_params)
 
-            st.write(" scoring on test dataD:s : ")
-            st.write(log_reg_clf.score(x_test_log_reg, y_test))
+            st.write(" scoring on test data : ")
+            score = log_reg_clf.score(x_test_log_reg, y_test)
+            st.write(score)
 
             st.write("saving model")
-            (save_model(log_reg_clf, 'log_reg_clf.SAV'))
+            log_reg = { "model" : log_reg_clf , "x_test": x_test_log_reg , "y_test" : y_test, "best_estimator" : best_estimator_, "best_params":best_params, "score" : score, "encoder" : encoder }
+            (save_model(log_reg, 'log_reg_clf.SAV'))
+
 
 
         if model_[1] == "rand_for":
             st.write("Model rand_for : \n")
 
 
-            params = {'n_estimators': [1, 2, 4, 8, 16, 32, 64, 100, 200],
+            params = {'n_estimators': [ 32, 64, 100, 200],
                       'criterion': ['gini', 'entropy', 'log_loss'],
-                      'max_depth': [e for e in range(0, 32, 2)]}
+                      'max_depth': [e for e in range(0, 30, 3)]}
 
             random_forest = GridSearchCV(model_[0], params, cv=5)
 
             random_forest.fit(x_train_rand_for, y_train)
 
             st.write(" best estimator : ")
-            st.write(random_forest.best_estimator_)
-            st.write(" best params : ")
-            st.write(random_forest.best_score_)
+            best_estimator_ = random_forest.best_estimator_
+            st.write(best_estimator_)
 
-            st.write(" scoring on test datas : ")
-            st.write(random_forest.score(x_test_rand_for, y_test))
+            st.write(" best params : ")
+            best_params = random_forest.best_score_
+            st.write(best_params)
+
+            st.write(" scoring on test data : ")
+            score = random_forest.score(x_test_log_reg, y_test)
+            st.write(score)
 
             st.write("saving model")
-            save_model(random_forest, 'random_forest.SAV')
+            random_forest = {"model": random_forest, "x_test": x_test_log_reg , "y_test": y_test, "best_estimator": best_estimator_,
+                                "best_params": best_params, "score": score, "encoder" : encoder }
+            (save_model(random_forest, 'random_forest.SAV'))
 
-
-        if model_[1] == "neur_net":
+    if model_[1] == "neur_net":
             st.write("Model neur_net : \n")
 
             standardization(x_train_neur_net, x_test_neur_net)
@@ -202,45 +214,31 @@ def retrain_all_model():
             neural_network.fit(x_train_neur_net, y_train)
 
             st.write(" best estimator : ")
-            st.write(neural_network.best_estimator_)
-            st.write(" best params : ")
-            st.write(neural_network.best_score_)
+            best_estimator_ = neural_network.best_estimator_
+            st.write(best_estimator_)
 
-            st.write(" scoring on test datas : ")
-            st.write(neural_network.score(x_test_neur_net, y_test))
+            st.write(" best params : ")
+            best_params = neural_network.best_score_
+            st.write(best_params)
+
+            st.write(" scoring on test data : ")
+            score = neural_network.score(x_test_log_reg, y_test)
+            st.write(score)
 
             st.write("saving model")
-            save_model(neural_network, 'neural_net.SAV')
-        n += 1
-
-
-#Creating voting classifier ( ensemble )
-    st.write("Now creating voting classifier")
-
-    log_reg = load_model_from_disk("model/log_reg_clf.SAV")
-    rand_for = load_model_from_disk("model/random_forest.SAV")
-    nn = load_model_from_disk("model/neural_net.SAV")
-
-    eclf = VotingClassifier(
-        estimators=[('lr', log_reg), ('rf', rand_for), ('nn', nn)],
-        voting='soft')
-
-    st.write(cross_val_score(eclf, x_train, y_train))
-    st.write("Voting classifier score : ")
-    st.write(eclf.score(x_test,y_test))
-    save_model(eclf, 'voting_classifier.SAV')
+            neur_net = {"model": neural_network, "x_test": x_test_log_reg , "y_test": y_test, "best_estimator": best_estimator_,
+                             "best_params": best_params, "score": score, "encoder" : encoder}
+            (save_model(neur_net, 'neur_net.SAV'))
 
 
 
 
-def test_model():
 
-    model = load_model_from_disk("model/svm_clf.SAV")
-
-
-    x_train, x_test, y_train, y_test = preprocess.load_data_for_model_training()
-    y_pred = model.predict(y_train)
-    mesure_accuracy(y_test, y_pred)
+def test_model(model,x_test, y_test):
+    y_pred = model.predict(x_test)
+    accuracy = mesure_accuracy(y_test, y_pred)
+    st.write(accuracy)
+    return y_pred, accuracy
 
 
 
