@@ -12,6 +12,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import db
 from sklearn.preprocessing import LabelEncoder
+import streamlit as st
+
 
 
 def standardization(x_train,x_test):
@@ -85,7 +87,11 @@ def retrain_all_model():
     df = df.drop("Unnamed: 0", axis = 1)
     df = df.drop("index", axis = 1)
     df = df.drop("Libellé de la commune", axis = 1)
-    df = df.drop("president_gagnant", axis = 1)
+    df = df.drop("longitude", axis = 1)
+    df = df.drop("latitude", axis=1)
+    df = df.drop("Geo Point", axis=1)
+    df = df.drop("NOM_COM", axis=1)
+    df = df.drop("president_gagnant", axis=1)
     df["Age moyen"] = df["Age moyen"].replace(",", ".", regex=True)
     df["Age moyen"] = df["Age moyen"].astype("float")
 
@@ -99,7 +105,6 @@ def retrain_all_model():
     x_train, x_test, y_train, y_test = train_test_split( X, Y_encoded, test_size=0.33, random_state=42)
 
     x_train_log_reg, x_test_log_reg = x_train.copy(), x_test.copy()
-    x_train_smv, x_test_smv = x_train, x_test.copy()
     x_train_rand_for, x_test_rand_for = x_train.copy(), x_test.copy()
     x_train_neur_net, x_test_neur_net = x_train.copy(), x_test.copy()
 
@@ -116,27 +121,27 @@ def retrain_all_model():
     models_list.extend(((log_reg_clf,"log_reg"), (random_forest,"rand_for"), (neural_network, "neur_net")))
 
 
-    print("model instances created")
+    st.write("model instances created")
 
     # Now we apply a grid search in order to find the best parameters to our models
 
-    print("Now applying preporcessing then grid search to find best params for each model")
+    st.write("Now applying preporcessing then grid search to find best params for each model")
     n= 1
 
     for model_ in models_list:
 
-        print("---------------------Training new model---------------------")
-        print(f" \n  model N° {n} / {len(models_list)} \n")
+        st.write("---------------------Training new model---------------------")
+        st.write(f" \n  model N° {n} / {len(models_list)} \n")
 
 
 
         if model_[1] == "log_reg":
-            print("Model log_reg : \n")
-            print("preprocessing data : Standardization")
+            st.write("Model log_reg : \n")
+            st.write("preprocessing data : Standardization")
 
             standardization(x_train_log_reg,x_test_log_reg)
 
-            print("Standardisation done, begining grid search")
+            st.write("Standardisation done, begining grid search")
             params = {'solver': ('newton-cg', 'liblinear'),
                       'max_iter': [e for e in range(5000,15000,1000)]}
 
@@ -144,47 +149,20 @@ def retrain_all_model():
 
             log_reg_clf.fit(x_train_log_reg, y_train)
 
-            print(" best estimator : ")
+            st.write(" best estimator : ")
             print(log_reg_clf.best_estimator_)
-            print(" best params : ")
-            print(log_reg_clf.best_score_)
+            st.write(" best params : ")
+            st.write(log_reg_clf.best_score_)
 
-            print(" scoring on test dataD:s : ")
-            print(log_reg_clf.score(x_test_log_reg, y_test))
+            st.write(" scoring on test dataD:s : ")
+            st.write(log_reg_clf.score(x_test_log_reg, y_test))
 
-            print("saving model")
+            st.write("saving model")
             (save_model(log_reg_clf, 'log_reg_clf.SAV'))
 
 
-        if model_[1] == "smv":
-            print("Model svm : \n")
-
-
-            standardization(x_train_smv, x_test_smv)
-
-            print("Standardisation done, begining grid search")
-
-
-            params = {'C':  [0.75, 1, 1.25],
-                      'kernel': ('linear', 'poly', 'rbf', 'sigmoid')}
-
-            svm_clf = GridSearchCV(model_[0], params, cv=5)
-
-            svm_clf.fit(x_train_smv, y_train)
-
-            print(" best estimator : ")
-            print(svm_clf.best_estimator_)
-            print(" best params : ")
-            print(svm_clf.best_score_)
-
-            print(" scoring on test datas : ")
-            print(svm_clf.score(x_test_smv, y_test))
-
-            print("saving model")
-            save_model(svm_clf, 'svm_clf.SAV')
-
         if model_[1] == "rand_for":
-            print("Model rand_for : \n")
+            st.write("Model rand_for : \n")
 
 
             params = {'n_estimators': [1, 2, 4, 8, 16, 32, 64, 100, 200],
@@ -195,20 +173,20 @@ def retrain_all_model():
 
             random_forest.fit(x_train_rand_for, y_train)
 
-            print(" best estimator : ")
-            print(random_forest.best_estimator_)
-            print(" best params : ")
-            print(random_forest.best_score_)
+            st.write(" best estimator : ")
+            st.write(random_forest.best_estimator_)
+            st.write(" best params : ")
+            st.write(random_forest.best_score_)
 
-            print(" scoring on test datas : ")
-            print(random_forest.score(x_test_rand_for, y_test))
+            st.write(" scoring on test datas : ")
+            st.write(random_forest.score(x_test_rand_for, y_test))
 
-            print("saving model")
+            st.write("saving model")
             save_model(random_forest, 'random_forest.SAV')
 
 
         if model_[1] == "neur_net":
-            print("Model neur_net : \n")
+            st.write("Model neur_net : \n")
 
             standardization(x_train_neur_net, x_test_neur_net)
 
@@ -223,21 +201,21 @@ def retrain_all_model():
 
             neural_network.fit(x_train_neur_net, y_train)
 
-            print(" best estimator : ")
-            print(neural_network.best_estimator_)
-            print(" best params : ")
-            print(neural_network.best_score_)
+            st.write(" best estimator : ")
+            st.write(neural_network.best_estimator_)
+            st.write(" best params : ")
+            st.write(neural_network.best_score_)
 
-            print(" scoring on test datas : ")
-            print(neural_network.score(x_test_neur_net, y_test))
+            st.write(" scoring on test datas : ")
+            st.write(neural_network.score(x_test_neur_net, y_test))
 
-            print("saving model")
+            st.write("saving model")
             save_model(neural_network, 'neural_net.SAV')
         n += 1
 
 
 #Creating voting classifier ( ensemble )
-    print("Now creating voting classifier")
+    st.write("Now creating voting classifier")
 
     log_reg = load_model_from_disk("model/log_reg_clf.SAV")
     rand_for = load_model_from_disk("model/random_forest.SAV")
@@ -247,9 +225,9 @@ def retrain_all_model():
         estimators=[('lr', log_reg), ('rf', rand_for), ('nn', nn)],
         voting='soft')
 
-    print(cross_val_score(eclf, x_train, y_train))
-    print("Voting classifier score : ")
-    print(eclf.score(x_test,y_test))
+    st.write(cross_val_score(eclf, x_train, y_train))
+    st.write("Voting classifier score : ")
+    st.write(eclf.score(x_test,y_test))
     save_model(eclf, 'voting_classifier.SAV')
 
 

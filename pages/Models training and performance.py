@@ -82,12 +82,13 @@ page_selected = selectbox_without_default("what do you want to do ? ", pages_lis
 
 
 if page_selected == "Retrain Model":
+    st.write("If you click the button below, the 3 models will be retrains")
+    if st.button('Retrain all models'):
 
-    with st.spinner(" Printing metrics..."):
-        st.write("Model overview after training: ")
-        last_y_pred , last_y_actual = database.query_last_real_metrics(model_id)
-        st.pyplot(plot_confusion_matrix_last_perf(model, last_y_pred, last_y_actual).figure_)
-        accuracy = measure_accuracy(last_y_pred,last_y_actual)
+        with st.spinner(" Printing trainings details:..."):
+            model.retrain_all_model()
+
+
 
 
         """Accuracy on last real data is : """ + str(accuracy)
