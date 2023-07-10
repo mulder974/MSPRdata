@@ -269,7 +269,6 @@ def test_model():
 
 
 
-retrain_all_model()
 
 # x_train,x_test,y_train,y_test=preprocess.load_data_for_model_training()
 #

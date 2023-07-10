@@ -1,30 +1,67 @@
 import pandas as pd
 import psycopg2 as psy
 
+from sqlalchemy import create_engine
+import pandas as pd
 
-def insert_model(model_name,model_pickle):
+
+import pickle
+
+import db
+
+
+def load_model_from_disk(model_path):
+    loaded_model = pickle.load(open(f'{model_path}', 'rb'))
+    loaded_model = pickle.load(open(f'{model_path}', 'rb'))
+    return loaded_model
+
+
+
+
+def insert_model(model_name):
+    model_to_save = pickle.load(open(f'{model_name}.SAV', 'rb'))
     connection = psy.connect("postgresql://pierresimplon974:hIf3kgq7rJiQ@ep-square-salad-072972.eu-central-1.aws.neon.tech/neondb?options=endpoint%3Dep-square-salad-072972")
     connection.set_session(autocommit=True)
     cursor = connection.cursor()
-    cursor.execute("INSERT INTO models(model_name,model_pickle) VALUES (%s, %s)", (model_name,psy.Binary(model_pickle)))
+    cursor.execute("INSERT INTO models(model_name,model_pickle) VALUES (%s, %s)", (model_name,psy.Binary(model_to_save)))
+
+def insert_data():
+    df = pd.read_csv("coord.csv")
+    df = df.drop("Unnamed: 0.1" , axis = 1)
+
+    # Create an engine instance
+    alchemyEngine = create_engine('postgresql://pierresimplon974:hIf3kgq7rJiQ@ep-square-salad-072972.eu-central-1.aws.neon.tech/neondb?options=endpoint%3Dep-square-salad-072972', pool_recycle=3600)
+
+    # Connect to PostgreSQL server
+    dbConnection = alchemyEngine.connect()
+
+    try:
+        # Insert whole DataFrame into PostgreSQL
+        df.to_sql('elections_data', dbConnection, if_exists='replace')
+    except ValueError as vx:
+        print(vx)
+    except Exception as ex:
+        print(ex)
+    else:
+        print("PostgreSQL Table has been created successfully.")
+    finally:
+        dbConnection.close()
+
 
 
 
 def query_data():
-    connection = sqlalchemy.create_engine('postgresql://pierresimplon974:hIf3kgq7rJiQ@ep-square-salad-072972.eu-central-1.aws.neon.tech/neondb?options=endpoint%3Dep-square-salad-072972').connect()
+    connection = psy.connect("postgresql://pierresimplon974:hIf3kgq7rJiQ@ep-square-salad-072972.eu-central-1.aws.neon.tech/neondb?options=endpoint%3Dep-square-salad-072972")
+    connection.set_session(autocommit=True)
     cursor = connection.cursor()
-
-    # Use pandas to execute the query and assign the result to a DataFrame
-    df = pd.read_sql_query("SELECT * FROM your_table_name", connection)
-
-    # Close the cursor and the connection
-    cursor.close()
+    cursor.execute(
+        """
+        SELECT * FROM elections_data
+        """,
+    )
+    data = cursor.fetchall()
     connection.close()
-
-    # Now you can work with the DataFrame df
-    print(df.head())
-    df = pd.read_sql_table('elections_data', connection)
-    return df
+    return data
 
 
 
@@ -35,5 +72,6 @@ def query_model_id(model_name):
     cursor.execute("SELECT id FROM models WHERE model_name = %s", (model_name,))
     id = cursor.fetchone()
     return id
+
 
 

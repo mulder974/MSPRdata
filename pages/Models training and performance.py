@@ -9,24 +9,33 @@ import sklearn.metrics
 from sklearn.model_selection import GridSearchCV
 
 
+
+
+
+
+
 def load_model_from_disk(model_path):
     loaded_model = pickle.load(open(f'{model_path}', 'rb'))
     return loaded_model
 
 
 
-dic_model =  {"Logistic Regression": {"model": model.create_model_logreg(),
+df_data = pd.DataFrame(data = db.query_data())
+print(df_data)
+
+
+dic_model =  {"log_reg_clf": {"model": model.create_model_logreg(),
                                       "Grid_Search_Param": {'solver': ('newton-cg', 'liblinear'),
                                                             'max_iter': [e for e in range(5000, 7000, 250)]}
                                       },
 
-              "Random Forest": {"model": model.create_model_rand_for(),
+              "random_forest": {"model": model.create_model_rand_for(),
                                 "Grid_Search_Param": {'n_estimators': [1, 2, 4, 8, 16, 32, 64, 100, 200],
                                                       'criterion': ['gini', 'entropy', 'log_loss'],
                                                       'max_depth': [e for e in range(0, 32, 2)]}
                                 },
 
-              "Neural Network": {"model": model.create_model_neur_net(),
+              "neural_net": {"model": model.create_model_neur_net(),
                                  "Grid_Search_Param": {'hidden_layer_sizes': (300, 400, 500),
                                                        'alpha' : [0.01, 0.001, 0.05, 0.1],
                                                        'max_iter': [e+1 for e in range(500, 2000, 250)],
@@ -34,7 +43,7 @@ dic_model =  {"Logistic Regression": {"model": model.create_model_logreg(),
                                  }
               }
 
-pages_list = ["Model training", "Model perfomances since last training on real data", "Model accuracy evolutions over training"]
+pages_list = ["Retrain Model", "See models performances", "Test models"]
 
 
 def selectbox_without_default(label, options):
@@ -68,31 +77,11 @@ def plot_confusion_matrix_last_perf(model, last_y_test, last_y_predicted):
 
 
 
-
-model_selected = selectbox_without_default("Choose a model", dic_model.keys())
-page_selected = selectbox_without_default("what do you want to check ? ", pages_list)
-
-model_id = db.query_model_id(model_selected)[0]
-model = db.query_model(model_selected)
-
-if not model_selected:
-    st.stop()
-
-
-if page_selected == "Model training":
-    model_id = db.query_model_id(model_selected)[0]
-    model = db.query_model(model_selected)
+page_selected = selectbox_without_default("what do you want to do ? ", pages_list)
 
 
 
-    y_test, y_predicted, accuracy = db.query_last_metrics(model_selected)
-    print(model_selected)
-    st.pyplot(plot_confusion_matrix(model, y_test, y_predicted).figure_)
-    """Accuracy on test_set was : """ + str(accuracy)
-
-
-
-elif page_selected == "Model perfomances since last training on real data":
+if page_selected == "Retrain Model":
 
     with st.spinner(" Printing metrics..."):
         st.write("Model overview after training: ")
@@ -100,9 +89,16 @@ elif page_selected == "Model perfomances since last training on real data":
         st.pyplot(plot_confusion_matrix_last_perf(model, last_y_pred, last_y_actual).figure_)
         accuracy = measure_accuracy(last_y_pred,last_y_actual)
 
-        """Accuracy on last real data is : """ + str(accuracy)
 
-elif page_selected == "Model accuracy evolutions over training":
+        """Accuracy on last real data is : """ + str(accuracy)
+elif page_selected == "See models performances":
+    model_selected = selectbox_without_default("Choose a model", dic_model.keys())
+    model = load_model_from_disk(f"{model_selected}.SAV")
+    # st.pyplot(plot_confusion_matrix(model, y_test, y_predicted).figure_)
+    # """Accuracy on test_set was : """ + str(accuracy)
+
+
+elif page_selected == "Test models":
 
     with st.spinner(" Printing metrics..."):
         accuracies, dates = database.query_accuracies(model_id)
